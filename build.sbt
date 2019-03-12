@@ -1,9 +1,9 @@
 import sbt.Keys._
 
-scalaVersion := "2.12.4"
-organization := "xingu"
-name         := "xingu-scala-commons"
-version      := "v1.0-SNAPSHOT"
+ThisBuild / scalaVersion := "2.12.4"
+ThisBuild / organization := "xingu"
+ThisBuild / name         := "xingu-scala-commons"
+ThisBuild / version      := "v1.0-SNAPSHOT"
 
 lazy val settings = Seq(
   resolvers ++= Seq(
@@ -23,18 +23,21 @@ lazy val dependencies =
 lazy val commonDependencies = Seq()
 
 lazy val commons = (project in file("commons"))
-    .settings(settings)
+  .withId("xingu-scala-commons")
+  .settings(settings)
 
 lazy val logging = (project in file("logging"))
-    .settings(
-        settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.logback)
-    )
+  .withId("xingu-scala-logging")
+  .settings(
+      settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.logback)
+  )
 
 lazy val play = (project in file("play"))
-    .enablePlugins(PlayScala)
-    .disablePlugins(PlayLayoutPlugin)
-    .dependsOn(commons)
-    .settings(settings)
+  .withId("xingu-scala-play")
+  .enablePlugins(PlayScala)
+  .disablePlugins(PlayLayoutPlugin)
+  .dependsOn(commons)
+  .settings(settings)
 
 lazy val root = (project in file("."))
     .aggregate(commons, logging, play)
