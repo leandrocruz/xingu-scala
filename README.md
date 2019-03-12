@@ -1,6 +1,9 @@
 # Xingu
-Some shared/reusable Scala code
+Reusable Scala Code
 
 # Build
+Build the package:
 > sbt package  
+
+Deploy it locally:
 > sbt publishLocal
