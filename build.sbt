@@ -15,8 +15,9 @@ lazy val settings = Seq(
 
 lazy val dependencies =
   new {
-    val AkkaVersion    = "2.5.16"
-    val logback        = "ch.qos.logback" % "logback-classic" % "1.2.3"
+    val AkkaVersion = "2.5.16"
+    val logback     = "ch.qos.logback" % "logback-classic" % "1.2.3"
+    val scalaArm    = "com.jsuereth"   %% "scala-arm"      % "2.0"
     //val akka           = "com.typesafe.akka" %% "akka-actor" % AkkaVersion
 }
 
@@ -37,7 +38,7 @@ lazy val play = (project in file("play"))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .dependsOn(commons)
-  .settings(settings)
+  .settings(settings, libraryDependencies ++= Seq(dependencies.scalaArm))
 
 lazy val root = (project in file("."))
     .aggregate(commons, logging, play)

@@ -1,4 +1,4 @@
-package akka
+package xingu.commons.play.akka
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 

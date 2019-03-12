@@ -1,4 +1,4 @@
-package services
+package xingu.commons.play.services
 
 import java.time.Clock
 

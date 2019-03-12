@@ -1,15 +1,11 @@
-package controllers
-
-import java.time.Clock
-import java.util.Date
-import services._
+package xingu.commons.play.controllers
 
 import com.typesafe.config.ConfigRenderOptions
 import javax.inject.Inject
-import play.api.libs.json.Json._
-import play.api.mvc.InjectedController
 import play.api.Configuration
 import play.api.http.MimeTypes
+import play.api.mvc.InjectedController
+import xingu.commons.play.services.Services
 
 class InternalController @Inject() (services: Services) extends InjectedController {
   var count = 0

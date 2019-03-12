@@ -1,5 +1,8 @@
+package xingu.commons
+
 import java.math.BigInteger
 import java.security.MessageDigest
+
 import scala.concurrent.Future
 
 object utils {
@@ -10,5 +13,13 @@ object utils {
 
   implicit class FutureUtils[T](obj: T) {
     def successful() = Future.successful(obj)
+  }
+}
+
+object path {
+  val date = """^(\d{4})(\d{2})(\d{2})\.\d{6}\-\w{6}$""".r
+  def toDatePath(path: String): String = path match {
+    case date(year, month, day) => s"$year/$month/$day/$path"
+    case _ => path
   }
 }
