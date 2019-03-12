@@ -10,12 +10,9 @@ object config {
 
     def withConfig[R](key: String)(handler: Configuration => R) =
       conf.getOptional[Configuration](key) match {
-        case None =>
-          throw new Exception(s"Can't find configuration for '${key}'")
-        case Some(conf) =>
-          handler(conf)
+        case None => throw new Exception(s"Can't find configuration for '$key'")
+        case Some(c) => handler(c)
       }
-
 
     def withKey[R](key: String)(handler: String => R) =
       handler(conf.get[String](key))
@@ -24,7 +21,7 @@ object config {
       withKey(key) { name =>
         val file = new File(name)
         if(!file.exists())
-          throw new Exception(s"Can't find file '${name}'")
+          throw new Exception(s"Can't find file '$name'")
         else
           managed(new FileInputStream(file)) acquireAndGet { handler }
       }
