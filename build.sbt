@@ -38,7 +38,7 @@ lazy val play = (project in file("play"))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .dependsOn(commons)
-  .settings(settings, libraryDependencies ++= Seq(dependencies.scalaArm))
+  .settings(settings, libraryDependencies ++= Seq(ws, dependencies.scalaArm))
 
 lazy val root = (project in file("."))
     .aggregate(commons, logging, play)
