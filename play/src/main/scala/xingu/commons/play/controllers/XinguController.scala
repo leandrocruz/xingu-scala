@@ -1,8 +1,8 @@
 package xingu.commons.play.controllers
 
 import akka.actor.{ActorRef, ActorSystem}
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Reads}
-import play.api.mvc.Results.{InternalServerError, NotFound}
+import play.api.libs.json._
+import play.api.mvc.Results._
 import play.api.mvc.{Request, Result}
 import xingu.commons.play.akka.utils._
 
@@ -11,8 +11,17 @@ import xingu.commons.utils._
 import xingu.commons.play.controllers.utils._
 
 import scala.util.Failure
+import scala.util.control.NonFatal
 
 trait XinguController {
+
+  def toResult[T](f: Future[Option[T]])(implicit writer: Writes[T], ec: ExecutionContext): Future[Result] =
+    f map {
+      _.map { it => Ok(Json.toJson(it)) } getOrElse { NotFound }
+    } recover {
+      case NonFatal(e) => InternalServerError(e.getMessage)
+    }
+
   def validateThen[R](fn: R => Future[Result])(implicit request: Request[JsValue], reader: Reads[R]): Future[Result] = {
     request.body.validate[R] match {
       case err : JsError      => err.toBadRequest.successful()
@@ -27,4 +36,5 @@ trait XinguController {
       case item: T    => handler(item)
     }
   }
+
 }
