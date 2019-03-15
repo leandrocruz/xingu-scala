@@ -4,8 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Reads}
 import play.api.mvc.Results.{InternalServerError, NotFound}
 import play.api.mvc.{Request, Result}
-import xingu.commons.play.akka.Inquire.inquire
-import xingu.commons.play.akka.Unknown
+import xingu.commons.play.akka.utils._
 
 import scala.concurrent.{ExecutionContext, Future}
 import xingu.commons.utils._
