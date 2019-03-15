@@ -40,6 +40,6 @@ lazy val play = (project in file("play"))
   .dependsOn(commons)
   .settings(settings, libraryDependencies ++= Seq(ws, dependencies.scalaArm))
 
-lazy val root = (project in file("."))
+lazy val xingu = (project in file("."))
     .aggregate(commons, logging, play)
     .settings(settings)
