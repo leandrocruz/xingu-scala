@@ -6,7 +6,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-trait ActorUtils {
+trait XinguActor {
+
   def to(ref: ActorRef)(fn: => Future[Any])(implicit ec: ExecutionContext) =
     fn map { result =>
       ref ! result

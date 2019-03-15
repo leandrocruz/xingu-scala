@@ -25,7 +25,7 @@ object utils {
   }
 
   implicit class JsonErrorHelper(err: JsError) {
-    def toBadRequest() = {
+    def toBadRequest = {
       BadRequest(JsError.toJson(err))
     }
   }
