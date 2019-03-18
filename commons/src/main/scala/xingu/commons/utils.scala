@@ -6,7 +6,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import scala.concurrent.Future
-import scala.util.Random
+import scala.util.{Failure, Random, Success}
 
 object utils {
   implicit class HashUtils(input: String) {
@@ -14,8 +14,17 @@ object utils {
       String.format("%032x", new BigInteger(1, MessageDigest.getInstance("SHA-256").digest(input.getBytes("UTF-8"))))
   }
 
+  implicit class StringUtils(message: String) {
+    def failed() = Future.failed(new Exception(message))
+    def failure() = Failure(new Exception(message))
+  }
+
   implicit class FutureUtils[T](obj: T) {
     def successful() = Future.successful(obj)
+  }
+
+  implicit class TryUtils[T](obj: T) {
+    def success() = Success(obj)
   }
 }
 
