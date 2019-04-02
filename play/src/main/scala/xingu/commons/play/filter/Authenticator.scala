@@ -26,17 +26,15 @@ class SimpleAuthenticator @Inject() (conf: Configuration) extends Authenticator 
     requireHttps,
     origins,
     cookie,
-    tokenHeader,
-    credentialsHeader,
+    header,
     pathsAllowed,
     defaultCredentialsValue
-  ) = conf.withConfig("simple-authenticator") { c => (
+  ) = conf.withConfig("xingu.authenticator") { c => (
     c.get[Boolean]        ("enabled")             , //
     c.get[Boolean]        ("secure")              , // require https
     c.get[Seq[String]]    ("origins")             , // which domains are allowed. Only enforced if the Origin header is sent
-    c.get[String]         ("cookie")              , // cookie name (input)
-    c.get[String]         ("headers.token")       , // header name (input)
-    c.get[String]         ("headers.credentials") , // header name (output)
+    c.get[String]         ("cookie-prefix")       , // cookie name (input)
+    c.get[String]         ("header-prefix")       , // header name (input)
     c.get[Seq[String]]    ("paths.allowed")       , // paths that will bypass authentication
     c.get[Option[String]] ("default-credentials")   // when autthentication is disabled
   )}
@@ -57,7 +55,7 @@ class SimpleAuthenticator @Inject() (conf: Configuration) extends Authenticator 
     }
 
   def extractToken(request: RequestHeader): Option[String] =
-    request.cookies.find(_.name == cookie).map(_.value).orElse(request.headers.get(tokenHeader))
+    request.cookies.find(_.name == cookie + "token").map(_.value).orElse(request.headers.get(header + "Token"))
 
   override def tokenFrom(request: RequestHeader) =
     for {
@@ -67,7 +65,7 @@ class SimpleAuthenticator @Inject() (conf: Configuration) extends Authenticator 
     } yield token
 
   override def applyCredentials(request: RequestHeader, credentials: String) = {
-    val headers = request.headers.add(credentialsHeader -> credentials)
+    val headers = request.headers.add(header + "Credentials" -> credentials)
     request.withHeaders(newHeaders = headers)
   }
 
