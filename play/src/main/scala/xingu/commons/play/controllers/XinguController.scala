@@ -22,7 +22,14 @@ trait XinguController {
       case NonFatal(e) => InternalServerError(e.getMessage)
     }
 
-  def validateThen[R](fn: (Request[JsValue], R)  => Future[Result])(implicit reader: Reads[R]): Request[JsValue] => Future[Result] = {
+  def validateThen[R](fn: R => Future[Result])(implicit r: Request[JsValue], reader: Reads[R]): Future[Result] = {
+      r.body.validate[R] match {
+        case err : JsError      => err.toBadRequest.successful()
+        case ok  : JsSuccess[R] => fn(ok.get)
+      }
+  }
+
+  def validate[R](fn: (Request[JsValue], R)  => Future[Result])(implicit reader: Reads[R]): Request[JsValue] => Future[Result] = {
     r: Request[JsValue] =>
       r.body.validate[R] match {
         case err : JsError      => err.toBadRequest.successful()
