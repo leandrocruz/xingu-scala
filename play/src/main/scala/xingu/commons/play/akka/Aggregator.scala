@@ -12,7 +12,7 @@ case object FilterDoesNotMatch
 object Aggregator {
   def create[T](ctx: ActorContext, replyTo: ActorRef, timeout: Option[FiniteDuration], expectedCount: Option[Int]) = {
     val id      = Random.alphanumeric.take(10).mkString
-    val props   = Props(classOf[Aggregator[T]], replyTo, timeout, expectedCount).withMailbox("aggregator-mailbox")
+    val props   = Props(classOf[Aggregator[T]], replyTo, timeout, expectedCount).withMailbox("xingu.aggregator-mailbox")
     ctx.actorOf(props, s"aggregator-$id")
   }
 }
