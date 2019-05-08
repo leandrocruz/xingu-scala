@@ -15,13 +15,13 @@ lazy val settings = Seq(
 
 lazy val dependencies =
   new {
-    val AkkaVersion = "2.5.16"
-    val logback     = "ch.qos.logback" % "logback-classic" % "1.2.3"
-    val scalaArm    = "com.jsuereth"   %% "scala-arm"      % "2.0"
-    //val akka           = "com.typesafe.akka" %% "akka-actor" % AkkaVersion
+    val AkkaVersion   = "2.5.16"
+    val logback       = "ch.qos.logback" % "logback-classic" % "1.2.3"
+    val scalaArm      = "com.jsuereth"   %% "scala-arm"      % "2.0"
+    val scalaTestPlus = "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.0" % Test
 }
 
-lazy val commonDependencies = Seq()
+lazy val commonDependencies = Seq(dependencies.scalaTestPlus)
 
 lazy val commons = (project in file("commons"))
   .withId("xingu-scala-commons")
@@ -38,7 +38,7 @@ lazy val play = (project in file("play"))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .dependsOn(commons)
-  .settings(settings, libraryDependencies ++= Seq(ws, dependencies.scalaArm))
+  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(ws, dependencies.scalaArm))
 
 lazy val xingu = (project in file("."))
     .aggregate(commons, logging, play)

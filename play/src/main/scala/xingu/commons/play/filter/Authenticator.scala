@@ -10,13 +10,25 @@ import xingu.commons.utils._
 import scala.concurrent.Future
 
 trait Authenticator {
-
   def isEnabled: Boolean
   def bypass(request: RequestHeader): Boolean
   def defaultCredentials(): Option[String]
   def tokenFrom(request: RequestHeader): Option[String]
   def toCredentials(token: String): Future[Option[String]]
   def applyCredentials(request: RequestHeader, credentials: String): RequestHeader
+}
+
+trait PathMatcher {
+  def test(path: String): Boolean
+}
+
+class ExactMatch (value: String) extends PathMatcher {
+  override def test(path: String) = value == path
+}
+
+class RegexMatch (value: String) extends PathMatcher {
+  val regex = value.r
+  override def test(path: String) = regex.findFirstIn(path).isDefined
 }
 
 @Singleton
@@ -39,7 +51,7 @@ class SimpleAuthenticator @Inject() (conf: Configuration) extends Authenticator 
     c.get[String]         ("cookie-prefix")       , // cookie name (input)
     c.get[String]         ("header-prefix")       , // header name (input)
     c.get[Seq[String]]    ("paths.allowed")       , // paths that will bypass authentication
-    c.get[Option[String]] ("default-credentials")   // when autthentication is disabled
+    c.get[Option[String]] ("default-credentials")   // when authentication is disabled
   )}
 
 
@@ -54,10 +66,19 @@ class SimpleAuthenticator @Inject() (conf: Configuration) extends Authenticator 
        | default-credentials : $defaultCredentialsValue
      """.stripMargin)
 
+  val paths = pathsAllowed.map(toPathConfig)
+
+  def toPathConfig(path: String): PathMatcher = {
+    if(path.startsWith("re:"))
+      new RegexMatch(path.substring("re:".length))
+    else
+      new ExactMatch(path)
+  }
+
   override def isEnabled = enabled
 
   override def bypass(request: RequestHeader) = {
-    val result = pathsAllowed.contains(request.path)
+    val result = paths.exists(_.test(request.path))
     log.debug(s"bypass (path: ${request.path}) = $result")
     result
   }
