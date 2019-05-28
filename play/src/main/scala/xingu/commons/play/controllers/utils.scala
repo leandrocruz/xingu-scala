@@ -1,10 +1,13 @@
 package xingu.commons.play.controllers
 
+import org.slf4j.Logger
 import play.api.http.HttpEntity.Strict
 import play.api.mvc._
 import play.api.mvc.Results._
 import play.api.libs.json._
 import play.api.libs.ws._
+
+import scala.util.control.NonFatal
 
 
 object utils {
@@ -28,5 +31,11 @@ object utils {
     def toBadRequest = {
       BadRequest(JsError.toJson(err))
     }
+  }
+
+  def ise(log: Logger): PartialFunction[Throwable, Status] = {
+    case NonFatal(e) =>
+      log.error("Error", e)
+      InternalServerError
   }
 }
