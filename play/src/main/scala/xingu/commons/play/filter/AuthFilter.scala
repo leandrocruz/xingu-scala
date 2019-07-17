@@ -1,6 +1,7 @@
 package xingu.commons.play.filter
 
 import akka.stream.Materializer
+import akka.util.ByteString
 import javax.inject.Inject
 import play.api.Configuration
 import play.api.http.HttpEntity
@@ -17,9 +18,9 @@ class AuthFilter @Inject() (
   implicit val ec  : ExecutionContext
 ) extends Filter {
 
-  val Forbidden = Result(
+  def Forbidden(msg: String) = Result(
     header = ResponseHeader(FORBIDDEN),
-    body   = HttpEntity.NoEntity
+    body   = HttpEntity.Strict(ByteString(msg), None)
   ).successful()
 
   override def apply(next: RequestHeader => Future[Result])(request: RequestHeader): Future[Result] = {
