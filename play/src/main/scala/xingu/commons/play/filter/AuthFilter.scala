@@ -26,14 +26,14 @@ class AuthFilter @Inject() (
 
     def continueWith(credentials: Option[String]) = {
       credentials match {
-        case None       => Forbidden
+        case None       => Forbidden("Missing credentials")
         case Some(cred) => next(authenticator.applyCredentials(request, cred))
       }
     }
 
     def enforce(request: RequestHeader): Future[Result] =
       authenticator.tokenFrom(request) match {
-        case None        => Forbidden
+        case None        => Forbidden("No Token")
         case Some(token) => authenticator.toCredentials(token) flatMap { continueWith }
       }
 
