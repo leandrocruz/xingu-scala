@@ -1,3 +1,3 @@
 steps:
-  - name: 'gcr.io/cloud-builders/scala-sbt'
+  - name: 'gcr.io/$PROJECT_ID/scala-sbt'
     args: ['clean', 'compile', 'package']
