@@ -1,0 +1,3 @@
+steps:
+  - name: 'gcr.io/dogmadev/scala-sbt'
+    args: ['clean', 'compile', 'package']
