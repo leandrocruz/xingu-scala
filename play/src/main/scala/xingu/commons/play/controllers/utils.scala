@@ -10,6 +10,8 @@ import play.api.libs.ws._
 import scala.util.control.NonFatal
 
 
+case class JsonError()
+
 object utils {
 
   implicit class ResponseHelper(r: WSResponse) {
@@ -28,8 +30,58 @@ object utils {
   }
 
   implicit class JsonErrorHelper(err: JsError) {
-    def toBadRequest = {
-      BadRequest(JsError.toJson(err))
+    def toBadRequest = BadRequest(asJsValue(err))
+
+    def asJsValue(err: JsError) = {
+
+      val expected = "expected\\.(\\w+)".r
+
+      def translateMessage(m: String) = {
+        m match {
+          case expected("jsstring") => "expected.string"
+          case expected("jsnumber") => "expected.number"
+          case expected("jsobject") => "expected.object"
+          case expected("jsarray")  => "expected.array"
+          case "path.missing"       => "missing"
+          case any => any
+        }
+      }
+
+      def translateError(error: JsonValidationError) = {
+        error
+          .messages
+          .map(_.substring("error.".length))
+          .map(translateMessage)
+      }
+
+      def translatePath(path: JsPath) = {
+        val translated = path.toJsonString
+        if ("obj" == translated)
+          "."
+        else if (translated.startsWith("obj."))
+          translated.substring("obj.".length)
+        else if (translated.startsWith("obj"))
+          translated.substring("obj".length)
+        else
+          translated
+      }
+
+      val keys = err.errors.map {
+        case (path: JsPath, array: Seq[JsonValidationError]) => {
+          (
+            translatePath(path),
+            array.flatMap(translateError)
+          )
+        }
+      }
+
+      JsObject(keys.map {
+        case (key, errors) =>
+          (
+            key,
+            JsArray(errors.map(i => JsString(i)))
+          )
+      })
     }
   }
 
