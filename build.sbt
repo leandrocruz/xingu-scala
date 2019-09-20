@@ -1,10 +1,10 @@
 import sbt.Keys._
 
-ThisBuild / publishTo    := Some(GCSPublisher.forBucket("dogma-repo-test", AccessRights.InheritBucket))
+//ThisBuild / publishTo    := Some(GCSPublisher.forBucket("dogma-repo-test", AccessRights.InheritBucket))
 ThisBuild / scalaVersion := "2.12.4"
 ThisBuild / organization := "xingu"
 ThisBuild / name         := "xingu-scala-commons"
-ThisBuild / version      := "v1.0-SNAPSHOT"
+ThisBuild / version      := "v1.0"
 
 lazy val settings = Seq(
   resolvers ++= Seq(
