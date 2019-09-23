@@ -4,7 +4,7 @@ import sbt.Keys._
 ThisBuild / scalaVersion := "2.12.4"
 ThisBuild / organization := "xingu"
 ThisBuild / name         := "xingu-scala-commons"
-ThisBuild / version      := "v1.0"
+ThisBuild / version      := "v1.0.1"
 
 lazy val settings = Seq(
   resolvers ++= Seq(
