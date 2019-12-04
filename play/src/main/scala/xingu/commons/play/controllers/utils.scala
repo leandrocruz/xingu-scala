@@ -14,6 +14,11 @@ case class JsonError()
 
 object utils {
 
+  implicit class RequestHelper[R](r: Request[R]) {
+    def param(key: String) =
+      r.queryString.get(key).flatMap(_.headOption)
+  }
+
   implicit class ResponseHelper(r: WSResponse) {
     def removeContentTypeAndContentLength(header: (String, Seq[String])): Boolean =
       header._1 != "Content-Type" && header._1 != "Content-Length"
