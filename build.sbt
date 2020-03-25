@@ -4,7 +4,7 @@ import sbt.Keys._
 ThisBuild / scalaVersion := "2.12.4"
 ThisBuild / organization := "xingu"
 ThisBuild / name         := "xingu-scala-commons"
-ThisBuild / version      := "v1.0.2"
+ThisBuild / version      := "v1.1.0"
 
 lazy val settings = Seq(
   resolvers ++= Seq(
@@ -19,6 +19,7 @@ lazy val dependencies =
     val AkkaVersion   = "2.5.16"
     val logback       = "ch.qos.logback" % "logback-classic" % "1.2.3"
     val scalaArm      = "com.jsuereth"   %% "scala-arm"      % "2.0"
+    val gcs           = "com.google.cloud"  % "google-cloud-storage" % "1.14.0"
     val scalaTestPlus = "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.0" % Test
 }
 
@@ -41,6 +42,20 @@ lazy val play = (project in file("play"))
   .dependsOn(commons)
   .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(ws, dependencies.scalaArm))
 
+lazy val cloudApi = (project in file("cloud/api"))
+  .withId("xingu-cloud-api")
+  .enablePlugins(PlayScala)
+  .disablePlugins(PlayLayoutPlugin)
+  .dependsOn(commons)
+  .settings(settings, libraryDependencies ++= commonDependencies)
+
+lazy val gcs = (project in file("cloud/impl/gcloud/storage"))
+  .withId("xingu-cloud-gcs")
+  .enablePlugins(PlayScala)
+  .disablePlugins(PlayLayoutPlugin)
+  .dependsOn(cloudApi)
+  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.gcs, dependencies.scalaArm))
+
 lazy val xingu = (project in file("."))
-    .aggregate(commons, logging, play)
+    .aggregate(commons, logging, play, cloudApi, gcs)
     .settings(settings)
