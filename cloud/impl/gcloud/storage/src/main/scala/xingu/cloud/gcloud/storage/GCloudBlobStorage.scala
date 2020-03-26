@@ -2,7 +2,7 @@ package xingu.cloud.gcloud.storage
 
 import java.io.{File, FileInputStream}
 import java.nio.ByteBuffer
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 
 import akka.util.ByteString
 import com.google.auth.oauth2.ServiceAccountCredentials
@@ -102,7 +102,7 @@ class Impl(project: String, key: String) extends BlobStorage {
           b.get(path)
         } map { it =>
           Some(Blob(
-            name        = it.getName,
+            name        = Paths.get(path).getFileName.toString,
             size        = it.getSize,
             contentType = Option(it.getContentType),
             data        = ByteString(it.getContent())))
