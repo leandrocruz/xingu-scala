@@ -26,11 +26,11 @@ lazy val dependencies =
 lazy val commonDependencies = Seq(dependencies.scalaTestPlus)
 
 lazy val commons = (project in file("commons"))
-  .withId("xingu-scala-commons")
+  .withId("xingu-commons")
   .settings(settings)
 
 lazy val logging = (project in file("logging"))
-  .withId("xingu-scala-logging")
+  .withId("xingu-logging")
   .settings(
       settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.logback)
   )
