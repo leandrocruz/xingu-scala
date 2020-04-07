@@ -1,6 +1,6 @@
 package xingu.commons.play.controllers
 
-import java.time.ZonedDateTime
+import java.time.{ZoneId, ZonedDateTime}
 
 import com.typesafe.config.ConfigRenderOptions
 import javax.inject.Inject
@@ -22,13 +22,12 @@ class InternalController @Inject() (services: Services) extends InjectedControll
     Ok(result).withHeaders(req.headers.headers: _*)
   }
 
-  def now() = Action {
+  def now() = Action { r =>
     val clock = services.clock()
-    val zone = clock.getZone
-    val now  = ZonedDateTime.now(clock)
-    Ok(
-      Json.obj(
-        "now"  -> now,
-        "zone" -> zone.getId))
+    val tz    = r.queryString.get("zone").map(_.head).getOrElse(clock.getZone.getId)
+    val now   = ZonedDateTime.now(clock.withZone(ZoneId.of(tz)))
+    Ok {
+      Json.obj("now"  -> now, "zone" -> tz)
+    }
   }
 }
