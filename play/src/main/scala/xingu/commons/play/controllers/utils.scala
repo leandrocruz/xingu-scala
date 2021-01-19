@@ -3,9 +3,11 @@ package xingu.commons.play.controllers
 import org.slf4j.Logger
 import play.api.http.HttpEntity.Strict
 import play.api.mvc._
+import play.api.mvc.CookieHeaderEncoding
 import play.api.mvc.Results._
 import play.api.libs.json._
 import play.api.libs.ws._
+import play.api.http.HeaderNames
 
 import scala.util.control.NonFatal
 
@@ -20,17 +22,21 @@ object utils {
   }
 
   implicit class ResponseHelper(r: WSResponse) {
-    def removeContentTypeAndContentLength(header: (String, Seq[String])): Boolean =
-      header._1 != "Content-Type" && header._1 != "Content-Length"
+    def removeContentTypeContentLengthAndSetCookie(header: (String, Seq[String])): Boolean =
+      header._1 != HeaderNames.CONTENT_TYPE && header._1 != HeaderNames.CONTENT_LENGTH && header._1 != HeaderNames.SET_COOKIE
 
     def asTuple(header: (String, Seq[String])) =
       (header._1, header._2.head)
 
     def toResult: Result = {
-      val headers = r.headers filter { removeContentTypeAndContentLength } map { asTuple }
-      val h = ResponseHeader(r.status, headers)
-      val b = Strict(r.bodyAsBytes, Some(r.contentType))
-      Result(h, b)
+      val cookies    = r.headerValues(HeaderNames.SET_COOKIE)
+      val headers    = r.headers filter { removeContentTypeContentLengthAndSetCookie } map { asTuple }
+      val compressed = if(cookies.isEmpty) None else Some(cookies.mkString(";;")) // same as CookieHeaderEncoding.SetCookieHeaderSeparator
+      val parsed     = Cookies.fromCookieHeader(compressed).toSeq
+      Result(
+        header = ResponseHeader(r.status, headers),
+        body = Strict(r.bodyAsBytes, Some(r.contentType))
+      ).withCookies(parsed: _*)
     }
   }
 
