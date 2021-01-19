@@ -32,7 +32,12 @@ object utils {
       val cookies    = r.headerValues(HeaderNames.SET_COOKIE)
       val headers    = r.headers filter { removeContentTypeContentLengthAndSetCookie } map { asTuple }
       val compressed = if(cookies.isEmpty) None else Some(cookies.mkString(";;")) // same as CookieHeaderEncoding.SetCookieHeaderSeparator
-      val parsed     = Cookies.fromCookieHeader(compressed).toSeq
+      val parsed     = Cookies.decodeSetCookieHeader(cookies.mkString(";;")).toSeq
+
+//      println(headers)
+//      println(compressed)
+//      parsed.foreach(println)
+
       Result(
         header = ResponseHeader(r.status, headers),
         body = Strict(r.bodyAsBytes, Some(r.contentType))
