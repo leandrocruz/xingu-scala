@@ -4,7 +4,7 @@ import sbt.Keys._
 ThisBuild / scalaVersion := "2.12.11"
 ThisBuild / organization := "xingu"
 ThisBuild / name         := "xingu-scala-commons"
-ThisBuild / version      := "v1.1.2"
+ThisBuild / version      := "v1.1.3"
 
 lazy val settings = Seq(
   resolvers ++= Seq(
@@ -17,13 +17,14 @@ lazy val settings = Seq(
 lazy val dependencies =
   new {
     val logback         = "ch.qos.logback" % "logback-classic" % "1.2.3"
-    val scalaArm        = "com.jsuereth"   %% "scala-arm"      % "2.0"
-    val gcs             = "com.google.cloud"  % "google-cloud-storage" % "1.14.0"
-    val scalaTestPlus   = "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.0" % Test
+    val scalaArm        = "com.jsuereth" %% "scala-arm" % "2.0"
+    val gcs             = "com.google.cloud" % "google-cloud-storage" % "1.14.0"
+    val scalaTestPlus   = "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test
+    val scalaMock       = "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % Test
     val javaxActivation = "com.sun.activation" % "javax.activation" % "1.2.0"
 }
 
-lazy val commonDependencies = Seq(dependencies.javaxActivation, dependencies.scalaTestPlus)
+lazy val commonDependencies = Seq(dependencies.javaxActivation, dependencies.scalaTestPlus, dependencies.scalaMock)
 
 lazy val commons = (project in file("commons"))
   .withId("xingu-commons")
