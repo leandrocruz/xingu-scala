@@ -6,6 +6,7 @@ import java.nio.file.{Files, Paths}
 
 import akka.util.ByteString
 import com.google.auth.oauth2.ServiceAccountCredentials
+import com.google.cloud.storage
 import com.google.cloud.storage.Storage.{BlobListOption, BucketListOption}
 import com.google.cloud.storage.{BlobInfo, Bucket, Storage, StorageOptions}
 import javax.activation.MimetypesFileTypeMap
@@ -97,15 +98,21 @@ class Impl(project: String, key: String) extends BlobStorage {
   override def download(bucket: String, path: String)(implicit ec: ExecutionContext) = {
 
     def downloadItem(opt: Option[Bucket]) = {
+      def blobOf(it: storage.Blob) = {
+        Blob(
+          name        = Paths.get(path).getFileName.toString,
+          size        = it.getSize,
+          contentType = Option(it.getContentType),
+          data        = ByteString(it.getContent()))
+      }
+
       opt map { b =>
         Future {
           b.get(path)
-        } map { it =>
-          Some(Blob(
-            name        = Paths.get(path).getFileName.toString,
-            size        = it.getSize,
-            contentType = Option(it.getContentType),
-            data        = ByteString(it.getContent())))
+        } map {
+          Option.apply
+        } map {
+          _.map(blobOf)
         }
       } getOrElse {
         Future.successful(None)
