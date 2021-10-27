@@ -1,14 +1,14 @@
 package xingu.commons.play.controllers
 
-import java.time.{ZoneId, ZonedDateTime}
-
 import com.typesafe.config.ConfigRenderOptions
-import javax.inject.Inject
 import play.api.Configuration
 import play.api.http.MimeTypes
 import play.api.libs.json.Json
 import play.api.mvc.InjectedController
 import xingu.commons.play.services.Services
+
+import java.time.{ZoneId, ZonedDateTime}
+import javax.inject.Inject
 
 class InternalController @Inject() (services: Services) extends InjectedController {
   var count = 0
@@ -29,5 +29,14 @@ class InternalController @Inject() (services: Services) extends InjectedControll
     Ok {
       Json.obj("now"  -> now, "zone" -> tz)
     }
+  }
+
+  def buildInfo() = Action {
+    services
+      .env()
+      .resourceAsStream("build-info.json")
+      .map(Json.parse)
+      .map(Ok(_))
+      .getOrElse(NotFound)
   }
 }
