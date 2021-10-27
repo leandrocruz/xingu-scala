@@ -1,5 +1,10 @@
 # Change Log
 
+## Release v1.4.0
+__LTS 27/10/2021__
+
+ - Added InternalController.buildInfo()
+
 ## Release v1.3.0
 __LTS 25/06/2021__
 
