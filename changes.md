@@ -1,5 +1,11 @@
 # Change Log
 
+
+## Release v1.5.0
+__LTS 19/11/2021__
+
+ - Added inquireOption, inquireTry and inquireEither
+
 ## Release v1.4.0
 __LTS 27/10/2021__
 
