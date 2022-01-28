@@ -24,7 +24,7 @@ lazy val dependencies =
     val scalaTestPlus   = "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test
     val scalaMock       = "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % Test
     val javaxActivation = "com.sun.activation" % "javax.activation" % "1.2.0"
-    val kafkaClient     = "net.cakesolutions" %% "scala-kafka-client-akka" % "2.3.1"
+    val kafkaClient     = "org.apache.kafka" %  "kafka-clients" % "2.6.0"
 }
 
 lazy val commonDependencies = Seq(dependencies.javaxActivation, dependencies.scalaTestPlus, dependencies.scalaMock)
