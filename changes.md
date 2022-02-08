@@ -1,5 +1,7 @@
 # Change Log
 
+ - Removed kafka dependency on 'cakesolutions'
+ - Added a new module 'xingu-kafka-client'
 
 ## Release v1.5.0
 __LTS 19/11/2021__
