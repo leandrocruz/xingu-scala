@@ -1,75 +1,26 @@
-package xingu.kafka
+package xingu.kafka.producer
 
 object api {
 
-  import play.api.libs.json.{JsSuccess, JsValue, Json, Reads}
+  import play.api.libs.json.Json
+  import xingu.kafka.Message
 
   import scala.concurrent.Future
 
-  case class Message(topic: String, payload: String, key: Option[String] = None)
-
-  case class KafkaMessagePointer(
-    id          : String,
-    bucket      : String,
-    path        : String,
-    kind        : String = "GCS",
-    evt         : String = "KafkaMessagePointer"
-  )
-
   case class Produced(partition: Int, offset: Long)
 
-  case class UploadRequest(
-    id          : String,
-    bucket      : String,
-    path        : String,
-    callback    : String,
-    contentType : Option[String] = None,
-    data        : Option[String] = None,
-    file        : Option[String] = None,
-  )
-
-  case class UploadResult(
-    size        : Long,
-    uploaded    : Long,
-    contentType : String
-  )
-
-  case class DownloadRequest(
-    bucket : String,
-    path   : String,
-  )
-
-  case class UploadExchange(request: UploadRequest, result: Either[Throwable, UploadResult])
-
-  trait MessageDispatcher {
+  trait XinguKafkaProducer {
     def send(msg: Message): Future[Either[Throwable, Produced]]
   }
 
   object json {
-    implicit val MessageReader             = Json.reads  [Message]
-    implicit val ProducedWriter            = Json.writes [Produced]
-    implicit val DownloadRequestWriter     = Json.writes [DownloadRequest]
-    implicit val UploadRequestReader       = Json.reads  [UploadRequest]
-    implicit val UploadRequestWriter       = Json.writes [UploadRequest]
-    implicit val UploadResultReader        = Json.reads  [UploadResult]
-    implicit val UploadResultWriter        = Json.writes [UploadResult]
-    implicit val KafkaMessagePointerReader = Json.reads  [KafkaMessagePointer]
-    implicit val KafkaMessagePointerWriter = Json.writes [KafkaMessagePointer]
-
-    implicit val UploadExchangeReader = new Reads[UploadExchange] {
-      override def reads(json: JsValue) = {
-        val result: Either[Throwable, UploadResult] = (json \ "result" \ "error").asOpt[String] match {
-          case Some(error) => Left(new Exception(error))
-          case None => Right((json \ "result").as[UploadResult])
-        }
-        val request = (json \ "request").as[UploadRequest]
-        JsSuccess(UploadExchange(request, result))
-      }
-    }
+    implicit val ProducedWriter = Json.writes [Produced]
   }
 }
 
 object impl {
+
+  import xingu.kafka.Message
   import api._
   import cats.data.EitherT
   import cats.implicits._
@@ -79,10 +30,12 @@ object impl {
 
   import javax.inject.{Inject, Singleton}
   import scala.concurrent.Future
+
   @Singleton
-  class KafkaMessageDispatcher @Inject()(services: Services) extends MessageDispatcher {
+  class KafkaXinguKafkaProducer @Inject()(services: Services) extends XinguKafkaProducer {
 
     import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+
     import java.util.Properties
     import scala.util.Try
 
@@ -167,27 +120,28 @@ object impl {
 
 object supervisor {
 
+  import xingu.kafka.Message
+  import xingu.kafka.Id
   import akka.actor.{Actor, ActorRef}
   import akka.pattern.pipe
-  import api.json._
   import org.slf4j.LoggerFactory
-  import xingu.kafka.api.{KafkaMessagePointer, Message, MessageDispatcher, UploadExchange}
-  import xingu.kafka.{Id, StorageClient}
   import play.api.libs.json.Json
-  import play.api.libs.ws.{WSClient, WSResponse}
+  import play.api.libs.ws.WSResponse
   import xingu.commons.play.services.Services
+  import xingu.kafka.producer.api._
+  import xingu.kafka.storage.api._
+  import xingu.kafka.storage.api.json._
 
   import javax.inject.Inject
   import scala.util.control.NonFatal
 
-  class DispatchSupervisor @Inject() (services: Services, ws: WSClient, dispatcher: MessageDispatcher) extends Actor {
+  class DispatchSupervisor @Inject() (services: Services, producer: XinguKafkaProducer, storage: XinguKafkaStorage) extends Actor {
 
     private implicit val ec = services.ec()
     private val logger      = LoggerFactory.getLogger(getClass)
     private val conf        = services.conf()
     private val clock       = services.clock()
-    private val threshold   = conf.get[Int]("dispatcher.threshold")
-    private val storage     = StorageClient(conf, ws)
+    private val threshold   = conf.get[Int]("xingu.kafka.producer..threshold")
     private var buffer      = Map.empty[String, (ActorRef, String, Option[String])]
 
     private def send(msg: Message) = {
@@ -213,7 +167,7 @@ object supervisor {
           })
       } else {
         logger.info(s"Sending Kafka Message Directly (${msg.topic}/${msg.key.getOrElse("None")})")
-        dispatcher.send(msg) pipeTo sender
+        producer.send(msg) pipeTo sender
       }
     }
 
@@ -239,7 +193,7 @@ object supervisor {
                     path   = request.path
                   )
                 }
-                dispatcher.send(Message(topic, Json.stringify(payload) , key)) pipeTo ref
+                producer.send(Message(topic, Json.stringify(payload) , key)) pipeTo ref
             }
         }
     }
