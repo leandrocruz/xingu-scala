@@ -1,12 +1,9 @@
 package xingu.kafka.producer
 
-
 import javax.inject.{Inject, Singleton}
 import org.slf4j.LoggerFactory
 import play.api.Configuration
 import play.api.libs.json.{JsNull, JsString, JsValue, Json}
-
-import java.util.Properties
 import scala.concurrent.{ExecutionContext, Future}
 
 case class MessageProduced(offset: Long, partition: Int)
@@ -19,13 +16,8 @@ trait KafkaProducerWrapper {
 class SimpleKafkaProducer @Inject()(conf: Configuration, ec: ExecutionContext) extends KafkaProducerWrapper {
 
   import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-
   import java.util.Properties
   import scala.util.Try
-
-  import org.apache.kafka.clients.producer.KafkaProducer
-
-  import org.apache.kafka.common.serialization.StringSerializer
 
   implicit val executor = ec
 
