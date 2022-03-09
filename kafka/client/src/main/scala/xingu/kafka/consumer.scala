@@ -2,10 +2,14 @@ package xingu.kafka.consumer
 
 object api {
 
+  import akka.actor.ActorRef
   import play.api.libs.json.JsValue
 
   case object Metrics
   case class  Event(topic: String, offset: Long, partition: Int, key: String, kind: String, value: JsValue)
+
+  case class StartConsuming(topics: Seq[String])
+  case class StopConsuming(topics: Seq[String])
 
   trait XinguKafkaEventHandler {
     def process(event: Event): Unit
@@ -13,6 +17,7 @@ object api {
 
   trait XinguKafkaConsumer {
     def metrics()
+    def supervisor(): Option[ActorRef]
   }
 }
 
@@ -27,7 +32,6 @@ object impl {
   import org.slf4j.LoggerFactory
   import play.api.Configuration
   import play.api.libs.json._
-  import shapeless.TypeCase
   import xingu.commons.play.services.Services
   import xingu.kafka.storage.api._
   import xingu.kafka.storage.api.json._
@@ -37,6 +41,7 @@ object impl {
   import java.util.Properties
   import javax.inject.{Inject, Singleton}
   import scala.collection.JavaConverters._
+  import scala.collection.Seq
   import scala.concurrent.Future
   import scala.concurrent.duration._
   import scala.language.postfixOps
@@ -50,24 +55,28 @@ object impl {
   @Singleton
   class SimpleXinguKafkaConsumer @Inject()(services : Services, handler: XinguKafkaEventHandler, storage: XinguKafkaStorage) extends XinguKafkaConsumer {
 
-    val logger  = LoggerFactory.getLogger(getClass)
-    val enabled = services.conf().getOptional[Boolean]("xingu.kafka.consumer.enabled").getOrElse(true)
-    var supervisor: ActorRef = null
+    private val logger = LoggerFactory.getLogger(getClass)
+    private val ref    = build()
 
-    if(enabled) {
-      supervisor = services.actorSystem().actorOf(Props(classOf[KafkaSupervisor], services, handler, storage), "xingu-kafka-consumer-supervisor")
-      supervisor ! Refresh
-    } else {
-      logger.warn("KafkaSupervisor is not enabled")
+    private def build() = {
+      val enabled = services.conf().getOptional[Boolean]("xingu.kafka.consumer.enabled").getOrElse(true)
+      if(enabled) {
+        val props = Props(classOf[KafkaSupervisor], services, handler, storage)
+        Some(services.actorSystem().actorOf(props, "xingu-kafka-consumer-supervisor"))
+      } else {
+        logger.warn("KafkaSupervisor is not enabled")
+        None
+      }
     }
 
     override def metrics() = {
-      if(supervisor != null) {
-        supervisor ! Metrics
-      } else {
-        logger.warn("KafkaSupervisor is not enabled")
+      ref match {
+        case Some(actor) => actor ! Metrics
+        case None        => logger.warn("KafkaSupervisor is not enabled")
       }
     }
+
+    override def supervisor() = ref
   }
 
   class ConsumerFactory (conf: Configuration) {
@@ -82,13 +91,12 @@ object impl {
       new lang.Long(0) /* this is ugly, but I can' t make it work with auto boxing */
     }
 
-    def createConsumer(from: Option[LocalDateTime] = None) = Try {
-      val id      = conf.get[String]      ("consumer.id")
-      val group   = conf.get[String]      ("consumer.group")
-      val topics  = conf.get[Seq[String]] ("consumer.topics")
-      val servers = conf.get[String]      ("servers")
-      val key     = conf.get[String]      ("key")
-      val secret  = conf.get[String]      ("secret")
+    def createConsumer(topics: Seq[String], from: Option[LocalDateTime] = None) = Try {
+      val id      = conf.get[String] ("consumer.id")
+      val group   = conf.get[String] ("consumer.group")
+      val servers = conf.get[String] ("servers")
+      val key     = conf.get[String] ("key")
+      val secret  = conf.get[String] ("secret")
 
       logger.info(
         s"""Kafka Consumer Config:
@@ -141,57 +149,79 @@ object impl {
 
   class KafkaSupervisor(services: Services, messageHandler: XinguKafkaEventHandler, storage: XinguKafkaStorage) extends Actor with Timers {
 
-    implicit val ec  = services.ec()
+    private implicit val ec  = services.ec()
 
-    val logger = LoggerFactory.getLogger(getClass)
-
-    val SomeActor    = TypeCase[Some[ActorRef]]
-    val conf         = services.conf().get[Configuration]("xingu.kafka")
-    val factory      = new ConsumerFactory(conf)
-    val timeout      = java.time.Duration.ofMillis(factory.timeoutInMillis)
-    val refreshEvery = conf.getOptional[FiniteDuration]("consumer.refreshEvery").getOrElse(1 hour)
-    val handler      = services.actorSystem().actorOf(Props(classOf[EventHandler], services, messageHandler, storage ), "xingu-kafka-event-handler")
-
-    var count = 0
-    var supervisor: Option[ActorRef] = None
+    private val logger       = LoggerFactory.getLogger(getClass)
+    private val conf         = services.conf().get[Configuration]("xingu.kafka")
+    private val factory      = new ConsumerFactory(conf)
+    private val timeout      = java.time.Duration.ofMillis(factory.timeoutInMillis)
+    private val refreshEvery = conf.getOptional[FiniteDuration]("consumer.refreshEvery").getOrElse(1 hour)
+    private val handler      = services.actorSystem().actorOf(Props(classOf[EventHandler], services, messageHandler, storage ), "xingu-kafka-event-handler")
+    private var topics       = services.conf().get[Seq[String]]("xingu.kafka.consumer.startConsuming")
+    private var consumerRef  = startNext()
+    private var count = 0
 
     context.system.scheduler.scheduleAtFixedRate(refreshEvery, refreshEvery, self, Refresh)
 
+    private def startNext(): Option[ActorRef] = {
+      if(topics.nonEmpty) {
+        logger.info(s"Creating new consumer for topics: ${topics.mkString(", ")}")
+        factory.createConsumer(topics) match {
+          case Success(consumer) =>
+            count = count + 1
+            Some(services.actorSystem().actorOf(Props(classOf[ConsumerSupervisor], services, self, consumer, timeout, handler), s"kafka-consumer-supervisor-$count"))
+
+          case Failure(e) =>
+            logger.error("Error creating kafka consumer", e)
+            None
+        }
+      } else {
+        logger.warn("No topics to consume")
+        None
+      }
+    }
+
+    private def start(coll: Seq[String]) = {
+      if(coll.nonEmpty) {
+        topics = topics ++ coll
+        self ! Refresh
+//        consumerRef = consumerRef.orElse(startNext())
+//        consumerRef foreach { _ ! StartConsuming(topics) }
+      }
+    }
+
+    private def stop(coll: Seq[String]) = {
+      if(coll.nonEmpty) {
+        topics = topics.filterNot(coll.contains)
+        self ! Refresh
+//        val signal = if(topics.isEmpty) CloseConsumer else StopConsuming(topics)
+//        consumerRef foreach { _ ! signal }
+      }
+    }
+
     override def receive = {
+      case StartConsuming(toStart) => start(toStart)
+      case StopConsuming(toStop)   => stop(toStop)
+
       case ConsumerClosed(e) =>
         logger.info("Consumer Closed")
-        supervisor foreach { context.stop }
-        supervisor = None
-        startNext()
+        consumerRef foreach { context.stop }
+        consumerRef = startNext()
+
 
       case Refresh =>
-        logger.info("Refreshing")
-        supervisor match {
+        logger.info(s"Refreshing")
+        consumerRef match {
           case Some(ref) => ref ! CloseConsumer
-          case None      => startNext()
+          case None      => consumerRef = startNext()
         }
 
       case Metrics =>
         logger.info(s"Count: ${count}")
-        supervisor.foreach(_ ! Metrics)
+        consumerRef.foreach(_ ! Metrics)
 
-      case Failure(e) =>
-        logger.info(s"Error from '${sender().path.name}'", e)
-
-      case any => logger.warn(s"Can't handle '$any' from '${sender().path.name}'")
-    }
-
-    def startNext() = {
-      logger.info("Creating new Consumer")
-      factory.createConsumer() match {
-        case Success(consumer) =>
-          count = count + 1
-          supervisor = Some(services.actorSystem().actorOf(Props(classOf[ConsumerSupervisor], services, self, consumer, timeout, handler), s"kafka-consumer-supervisor-$count"))
-
-        case Failure(e) =>
-          supervisor = None
-          logger.error("Error Creating Kafka Consumer", e)
-      }
+      case Failure(e) => logger.info(s"Error from '${sender().path.name}'", e)
+      case any        => logger.warn(s"Can't handle '$any' from '${sender().path.name}'")
     }
   }
 
@@ -209,6 +239,7 @@ object impl {
     var shouldRun = true
     var count     = 0
     var loop      = 0
+    var last      = Map.empty[String, Long]
 
     Future { consume } pipeTo parent
 
@@ -224,7 +255,10 @@ object impl {
         logger.info(s"Processing ${records.count()} events from kafka")
         loop = loop + 1
         count = count + records.count()
-        records.asScala foreach { record => handler ! record }
+        records.asScala foreach { record =>
+          last = last + (record.topic() -> record.offset())
+          handler ! record
+        }
         consumer.commitSync
       }
     }
@@ -240,7 +274,7 @@ object impl {
         }
       }
 
-      logger.info("Closing Consumer")
+      logger.info(s"Closing Consumer: ${last}")
 
       Try { consumer.close() } match {
         case Failure(e) =>
@@ -254,7 +288,8 @@ object impl {
     }
 
     def printMetrics() = {
-      logger.info(s"Count: ${count}")
+      logger.info(s"Count: $count")
+      logger.info(s"Last: $last")
       logger.info("Metrics")
       consumer.metrics().asScala foreach {
         case (name, value) =>
