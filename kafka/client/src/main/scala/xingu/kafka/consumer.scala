@@ -100,10 +100,11 @@ object impl {
 
       logger.info(
         s"""Kafka Consumer Config:
+           | enabled : ${conf.get[Boolean]("consumer.enabled")}
+           | servers : $servers
+           | key     : $key
            | group   : $group
-           | topics  : ${topics.mkString(", ")}
-           | servers : $servers""".stripMargin
-      )
+           | topics  : ${topics.mkString(", ")}""".stripMargin)
 
       val props = Map(
         "client.id"                             -> id,

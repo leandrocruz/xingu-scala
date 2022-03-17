@@ -24,15 +24,15 @@ object impl {
   import api._
   import cats.data.EitherT
   import cats.implicits._
+  import org.apache.kafka.common.serialization.StringSerializer
   import org.apache.kafka.clients.producer.RecordMetadata
   import org.slf4j.LoggerFactory
   import xingu.commons.play.services.Services
-
   import javax.inject.{Inject, Singleton}
   import scala.concurrent.Future
 
   @Singleton
-  class KafkaXinguKafkaProducer @Inject()(services: Services) extends XinguKafkaProducer {
+  class SimpleXinguKafkaProducer @Inject()(services: Services) extends XinguKafkaProducer {
 
     import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 
@@ -44,12 +44,16 @@ object impl {
     val logger         = LoggerFactory.getLogger(getClass)
     val conf           = services.conf()
     val clock          = services.clock()
-    val enabled        = conf.getOptional[Boolean]("dispatcher.enabled").getOrElse(true)
-    val servers        = conf.get[String]         ("dispatcher.servers")
-    val key            = conf.get[String]         ("dispatcher.key")
-    val secret         = conf.get[String]         ("dispatcher.secret")
+    val enabled        = conf.getOptional[Boolean]("xingu.kafka.producer.enabled").getOrElse(true)
+    val servers        = conf.get[String]         ("xingu.kafka.servers")
+    val key            = conf.get[String]         ("xingu.kafka.key")
+    val secret         = conf.get[String]         ("xingu.kafka.secret")
 
-    logger.info(s"Kafka Settings:\n- servers: $servers\n- key: $key")
+    logger.info(
+      s"""Kafka Producer Config:
+         | enabled : $enabled
+         | servers : $servers
+         | key     : $key""".stripMargin)
 
     /*
       See:
@@ -63,7 +67,9 @@ object impl {
         "security.protocol"                     -> "SASL_SSL",
         "sasl.jaas.config"                      -> s"""org.apache.kafka.common.security.plain.PlainLoginModule required username="$key" password="$secret";""",
         "ssl.endpoint.identification.algorithm" -> "https",
-        "sasl.mechanism"                        -> "PLAIN"
+        "sasl.mechanism"                        -> "PLAIN",
+        "key.serializer"                        -> classOf[StringSerializer].getName,
+        "value.serializer"                      -> classOf[StringSerializer].getName
       )
 
       val props = new Properties()
@@ -141,7 +147,7 @@ object supervisor {
     private val logger      = LoggerFactory.getLogger(getClass)
     private val conf        = services.conf()
     private val clock       = services.clock()
-    private val threshold   = conf.get[Int]("xingu.kafka.producer..threshold")
+    private val threshold   = conf.get[Int]("xingu.kafka.producer.threshold")
     private var buffer      = Map.empty[String, (ActorRef, String, Option[String])]
 
     private def send(msg: Message) = {
