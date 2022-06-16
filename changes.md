@@ -1,5 +1,8 @@
 # Change Log
 
+## Release v1.6.0
+__LTS 16/06/2022__
+
  - Removed kafka dependency on 'cakesolutions'
  - Added a new module 'xingu-kafka-client'
 
