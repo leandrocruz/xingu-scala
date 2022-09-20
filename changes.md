@@ -1,5 +1,12 @@
 # Change Log
 
+## Release v1.6.1
+__LTS 20/09/2022__
+
+ - Using commitAsync
+ - Logging offsets on errors and consumer start
+ - Configuration for `request.timeout.ms`, `auto.offset.reset`, `max.poll.interval.ms` and `max.poll.records` 
+
 ## Release v1.6.0
 __LTS 16/06/2022__
 
