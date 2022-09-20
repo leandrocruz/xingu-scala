@@ -129,9 +129,9 @@ object impl {
         "ssl.endpoint.identification.algorithm" -> "https",
         "sasl.mechanism"                        -> "PLAIN",
         "auto.offset.reset"                     -> kafkaAutoOffsetReset,
-        "request.timeout.ms"                    -> kafkaRequestTimeout.toMillis,
+        "request.timeout.ms"                    -> kafkaRequestTimeout.toMillis.toInt,
         "max.poll.records"                      -> kafkaMaxPollRecords,
-        "max.poll.interval.ms"                  -> kafkaMaxPollInterval.toMillis,
+        "max.poll.interval.ms"                  -> kafkaMaxPollInterval.toMillis.toInt,
         "key.deserializer"                      -> classOf[StringDeserializer].getName,
         "value.deserializer"                    -> classOf[StringDeserializer].getName
       )
