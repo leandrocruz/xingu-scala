@@ -1,5 +1,11 @@
 package xingu.kafka.consumer
 
+import java.util
+
+import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetCommitCallback}
+
+import scala.collection.mutable
+
 object api {
 
   import akka.actor.ActorRef
@@ -50,7 +56,7 @@ object impl {
 
   case object Refresh
   case object CloseConsumer
-  case class  ConsumerClosed(error: Option[Throwable])
+  case class  ConsumerClosed(offsets: Map[TopicPartition, OffsetAndMetadata], closingError: Option[Throwable] = None)
 
   @Singleton
   class SimpleXinguKafkaConsumer @Inject()(services : Services, handler: XinguKafkaEventHandler, storage: XinguKafkaStorage) extends XinguKafkaConsumer {
@@ -97,14 +103,22 @@ object impl {
       val servers = conf.get[String] ("servers")
       val key     = conf.get[String] ("key")
       val secret  = conf.get[String] ("secret")
+      val kafkaAutoOffsetReset = conf.getOptional[String]   ("consumer.auto-offset-reset") .getOrElse("earliest")
+      val kafkaRequestTimeout  = conf.getOptional[Duration] ("consumer.request-timeout")   .getOrElse(30 seconds) // this value must be smaller than max-poll-interval
+      val kafkaMaxPollInterval = conf.getOptional[Duration] ("consumer.max-poll-interval") .getOrElse(5 minutes)
+      val kafkaMaxPollRecords  = conf.getOptional[Int]      ("consumer.max-poll-records")  .getOrElse(50)
 
       logger.info(
         s"""Kafka Consumer Config:
-           | enabled : ${conf.get[Boolean]("consumer.enabled")}
-           | servers : $servers
-           | key     : $key
-           | group   : $group
-           | topics  : ${topics.mkString(", ")}""".stripMargin)
+           | enabled              : ${conf.get[Boolean]("consumer.enabled")}
+           | servers              : $servers
+           | key                  : $key
+           | group                : $group
+           | topics               : ${topics.mkString(", ")}
+           | auto.offset.reset    : $kafkaAutoOffsetReset
+           | request.timeout.ms   : ${kafkaRequestTimeout.toMillis}ms
+           | max.poll.interval.ms : ${kafkaMaxPollInterval.toMillis}ms
+           | max.poll.records     : $kafkaMaxPollRecords""".stripMargin)
 
       val props = Map(
         "client.id"                             -> id,
@@ -114,7 +128,10 @@ object impl {
         "sasl.jaas.config"                      -> s"""org.apache.kafka.common.security.plain.PlainLoginModule required username="$key" password="$secret";""",
         "ssl.endpoint.identification.algorithm" -> "https",
         "sasl.mechanism"                        -> "PLAIN",
-        "auto.offset.reset"                     -> "earliest",
+        "auto.offset.reset"                     -> kafkaAutoOffsetReset,
+        "request.timeout.ms"                    -> kafkaRequestTimeout.toMillis,
+        "max.poll.records"                      -> kafkaMaxPollRecords,
+        "max.poll.interval.ms"                  -> kafkaMaxPollInterval.toMillis,
         "key.deserializer"                      -> classOf[StringDeserializer].getName,
         "value.deserializer"                    -> classOf[StringDeserializer].getName
       )
@@ -164,11 +181,25 @@ object impl {
 
     context.system.scheduler.scheduleAtFixedRate(refreshEvery, refreshEvery, self, Refresh)
 
-    private def startNext(): Option[ActorRef] = {
+    private def startNext(from: Map[TopicPartition, OffsetAndMetadata] = Map.empty): Option[ActorRef] = {
       if(topics.nonEmpty) {
         logger.info(s"Creating new consumer for topics: ${topics.mkString(", ")}")
         factory.createConsumer(topics) match {
           case Success(consumer) =>
+            logger.info("Consumer End")
+            from foreach {
+              case (partition, offset) =>
+                logger.info(s"Consumer End => topic:${partition.topic}, partition:${partition.partition}, offset:${offset.offset}")
+            }
+
+            logger.info("Consumer Start")
+            val partitions = consumer.assignment()
+            val offsets    = consumer.beginningOffsets(partitions)
+            offsets.asScala foreach {
+              case (partition, offset) =>
+                logger.info(s"Consumer Start => topic:${partition.topic}, partition:${partition.partition}, offset:$offset")
+            }
+
             count = count + 1
             Some(services.actorSystem().actorOf(Props(classOf[ConsumerSupervisor], services, self, consumer, timeout, handler), s"kafka-consumer-supervisor-$count"))
 
@@ -186,8 +217,6 @@ object impl {
       if(coll.nonEmpty) {
         topics = topics ++ coll
         self ! Refresh
-//        consumerRef = consumerRef.orElse(startNext())
-//        consumerRef foreach { _ ! StartConsuming(topics) }
       }
     }
 
@@ -195,8 +224,6 @@ object impl {
       if(coll.nonEmpty) {
         topics = topics.filterNot(coll.contains)
         self ! Refresh
-//        val signal = if(topics.isEmpty) CloseConsumer else StopConsuming(topics)
-//        consumerRef foreach { _ ! signal }
       }
     }
 
@@ -204,10 +231,10 @@ object impl {
       case StartConsuming(toStart) => start(toStart)
       case StopConsuming(toStop)   => stop(toStop)
 
-      case ConsumerClosed(e) =>
+      case ConsumerClosed(offsets, e) =>
         logger.info("Consumer Closed")
         consumerRef foreach { context.stop }
-        consumerRef = startNext()
+        consumerRef = startNext(offsets)
 
 
       case Refresh =>
@@ -233,14 +260,12 @@ object impl {
     timeout  : java.time.Duration,
     handler  : ActorRef) extends Actor {
 
-    val logger = LoggerFactory.getLogger(getClass)
+    private val logger = LoggerFactory.getLogger(getClass)
 
-    implicit val ec = services.ec()
+    private implicit val ec = services.ec()
 
-    var shouldRun = true
-    var count     = 0
-    var loop      = 0
-    var last      = Map.empty[String, Long]
+    private var shouldRun = true
+    private var errors    = Map.empty[TopicPartition, OffsetAndMetadata]
 
     Future { consume } pipeTo parent
 
@@ -250,21 +275,31 @@ object impl {
       case any           => logger.warn(s"[${getClass.getSimpleName}] Can handle $any")
     }
 
-    def readRecords: Try[Unit] = {
-      Try {
-        val records = consumer.poll(timeout)
-        logger.info(s"Processing ${records.count()} events from kafka")
-        loop = loop + 1
-        count = count + records.count()
-        records.asScala foreach { record =>
-          last = last + (record.topic() -> record.offset())
-          handler ! record
-        }
-        consumer.commitSync
+    private def commitCallback(offsets: java.util.Map[TopicPartition, OffsetAndMetadata], err: Throwable) = {
+      errors = offsets.asScala.toMap
+      errors foreach {
+        case (partition: TopicPartition, offset: OffsetAndMetadata) =>
+          logger.error(s"Commit Error => topic:${partition.topic}, partition:${partition.partition}, offset:${offset.offset}, epoch:${offset.leaderEpoch}, meta:${offset.metadata}")
       }
+      logger.error("Commit Error", err)
     }
 
-    def consume = {
+    private def consume = {
+
+      def readRecords: Try[Unit] = {
+        Try {
+          val records = consumer.poll(timeout)
+          logger.info(s"Processing ${records.count()} events from kafka")
+
+          records.asScala foreach { record: ConsumerRecord[String, String] =>
+            logger.info(s"Record => topic:${record.topic}, partition:${record.partition}, offset:${record.offset}, key:${record.key}")
+            handler ! record
+          }
+
+          consumer.commitAsync(commitCallback)
+        }
+      }
+
       logger.info(s"Consumer Supervisor Started")
       while (shouldRun) {
         readRecords match {
@@ -275,22 +310,20 @@ object impl {
         }
       }
 
-      logger.info(s"Closing Consumer: ${last}")
+      logger.info(s"Closing Consumer")
 
       Try { consumer.close() } match {
         case Failure(e) =>
           logger.error("Error Closing Consumer", e)
-          ConsumerClosed(Some(e))
+          ConsumerClosed(errors, Some(e))
 
         case Success(_) =>
           logger.info("Consumer Closed")
-          ConsumerClosed(None)
+          ConsumerClosed(errors)
       }
     }
 
     def printMetrics() = {
-      logger.info(s"Count: $count")
-      logger.info(s"Last: $last")
       logger.info("Metrics")
       consumer.metrics().asScala foreach {
         case (name, value) =>
@@ -316,7 +349,6 @@ object impl {
       val value     = record.value()
       val key       = record.key()
       val partition = record.partition()
-      logger.info(s"Record => topic:$topic, offset:$offset, key:$key, partition:$partition")
       Try {
         val json = Json.parse(value)
         ((json \ "evt").asOpt[String], json)
