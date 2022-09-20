@@ -56,7 +56,7 @@ object impl {
 
   case object Refresh
   case object CloseConsumer
-  case class  ConsumerClosed(offsets: Map[TopicPartition, OffsetAndMetadata], closingError: Option[Throwable] = None)
+  case object ConsumerClosed
 
   @Singleton
   class SimpleXinguKafkaConsumer @Inject()(services : Services, handler: XinguKafkaEventHandler, storage: XinguKafkaStorage) extends XinguKafkaConsumer {
@@ -177,29 +177,15 @@ object impl {
     private val handler      = services.actorSystem().actorOf(Props(classOf[EventHandler], services, messageHandler, storage ), "xingu-kafka-event-handler")
     private var topics       = services.conf().get[Seq[String]]("xingu.kafka.consumer.startConsuming")
     private var consumerRef  = startNext()
-    private var count = 0
+    private var count        = 0
 
     context.system.scheduler.scheduleAtFixedRate(refreshEvery, refreshEvery, self, Refresh)
 
-    private def startNext(from: Map[TopicPartition, OffsetAndMetadata] = Map.empty): Option[ActorRef] = {
+    private def startNext(): Option[ActorRef] = {
       if(topics.nonEmpty) {
         logger.info(s"Creating new consumer for topics: ${topics.mkString(", ")}")
         factory.createConsumer(topics) match {
           case Success(consumer) =>
-            logger.info("Consumer End")
-            from foreach {
-              case (partition, offset) =>
-                logger.info(s"Consumer End => topic:${partition.topic}, partition:${partition.partition}, offset:${offset.offset}")
-            }
-
-            logger.info("Consumer Start")
-            val partitions = consumer.assignment()
-            val offsets    = consumer.beginningOffsets(partitions)
-            offsets.asScala foreach {
-              case (partition, offset) =>
-                logger.info(s"Consumer Start => topic:${partition.topic}, partition:${partition.partition}, offset:$offset")
-            }
-
             count = count + 1
             Some(services.actorSystem().actorOf(Props(classOf[ConsumerSupervisor], services, self, consumer, timeout, handler), s"kafka-consumer-supervisor-$count"))
 
@@ -231,10 +217,10 @@ object impl {
       case StartConsuming(toStart) => start(toStart)
       case StopConsuming(toStop)   => stop(toStop)
 
-      case ConsumerClosed(offsets, e) =>
+      case ConsumerClosed =>
         logger.info("Consumer Closed")
         consumerRef foreach { context.stop }
-        consumerRef = startNext(offsets)
+        consumerRef = startNext()
 
 
       case Refresh =>
@@ -264,6 +250,7 @@ object impl {
 
     private implicit val ec = services.ec()
 
+    private var firstPoll = true
     private var shouldRun = true
     private var errors    = Map.empty[TopicPartition, OffsetAndMetadata]
 
@@ -275,32 +262,44 @@ object impl {
       case any           => logger.warn(s"[${getClass.getSimpleName}] Can handle $any")
     }
 
-    private def commitCallback(offsets: java.util.Map[TopicPartition, OffsetAndMetadata], err: Throwable) = {
-      errors = offsets.asScala.toMap
-      errors foreach {
-        case (partition: TopicPartition, offset: OffsetAndMetadata) =>
-          logger.error(s"Commit Error => topic:${partition.topic}, partition:${partition.partition}, offset:${offset.offset}, epoch:${offset.leaderEpoch}, meta:${offset.metadata}")
+    private def commitCallback(offsets: java.util.Map[TopicPartition, OffsetAndMetadata], maybeCause: Throwable) = {
+      Option(maybeCause) match {
+        case None =>
+        case Some(cause) =>
+          errors = offsets.asScala.toMap
+          errors foreach {
+            case (partition: TopicPartition, offset: OffsetAndMetadata) =>
+              logger.error(s"Commit Error => topic:${partition.topic}, partition:${partition.partition}, offset:${offset.offset}")
+          }
+          logger.error("Commit Error", cause)
       }
-      logger.error("Commit Error", err)
     }
 
     private def consume = {
 
-      def readRecords: Try[Unit] = {
-        Try {
-          val records = consumer.poll(timeout)
-          logger.info(s"Processing ${records.count()} events from kafka")
-
-          records.asScala foreach { record: ConsumerRecord[String, String] =>
-            logger.info(s"Record => topic:${record.topic}, partition:${record.partition}, offset:${record.offset}, key:${record.key}")
-            handler ! record
+      def readRecords = Try {
+        val records = consumer.poll(timeout)
+        logger.info(s"Processing ${records.count} events from kafka")
+        if(firstPoll) {
+          firstPoll = false
+          val partitions = consumer.assignment
+          val offsets    = consumer.endOffsets(partitions)
+          offsets.asScala foreach {
+            case (partition, offset) =>
+              logger.info(s"Consumer Assignment => topic:${partition.topic}, partition:${partition.partition}, offset:$offset")
           }
-
-          consumer.commitAsync(commitCallback)
         }
+
+        records.asScala foreach { record: ConsumerRecord[String, String] =>
+          logger.info(s"Record => topic:${record.topic}, partition:${record.partition}, offset:${record.offset}, key:${record.key}")
+          handler ! record
+        }
+
+        consumer.commitAsync(commitCallback)
       }
 
       logger.info(s"Consumer Supervisor Started")
+
       while (shouldRun) {
         readRecords match {
           case Success(_) =>
@@ -315,11 +314,11 @@ object impl {
       Try { consumer.close() } match {
         case Failure(e) =>
           logger.error("Error Closing Consumer", e)
-          ConsumerClosed(errors, Some(e))
+          ConsumerClosed
 
         case Success(_) =>
           logger.info("Consumer Closed")
-          ConsumerClosed(errors)
+          ConsumerClosed
       }
     }
 
