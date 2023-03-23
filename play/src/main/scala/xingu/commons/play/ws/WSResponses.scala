@@ -1,14 +1,9 @@
 package xingu.commons.play.ws
 
-import java.net.URI
-
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import play.api.libs.json.{JsNull, JsValue}
 import play.api.libs.ws.ahc.AhcWSResponse
 import play.api.libs.ws.{StandaloneWSResponse, WSCookie, WSResponse}
-
-import scala.xml.Elem
 
 object responses {
 
@@ -19,7 +14,6 @@ object responses {
   def response(code: Int, bodyText: Option[String]): WSResponse =
     AhcWSResponse {
       new StandaloneWSResponse {
-        override def uri: URI                               = null
         override def statusText: String                     = ""
         override def underlying[T]: T                       = null.asInstanceOf[T]
         override def body: String                           = bodyText.getOrElse("")

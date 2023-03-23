@@ -179,7 +179,7 @@ object impl {
     private var consumerRef  = startNext()
     private var count        = 0
 
-    context.system.scheduler.scheduleAtFixedRate(refreshEvery, refreshEvery, self, Refresh)
+    context.system.scheduler.schedule(refreshEvery, refreshEvery, self, Refresh)
 
     private def startNext(): Option[ActorRef] = {
       if(topics.nonEmpty) {
