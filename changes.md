@@ -1,5 +1,11 @@
 # Change Log
 
+## Release v1.6.2
+__LTS 30/05/2023__
+
+ - Added `JourneyFilter` to `xingu-play`
+ - Compiling with java 8
+
 ## Release v1.6.1
 __LTS 20/09/2022__
 
