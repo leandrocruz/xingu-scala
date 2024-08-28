@@ -4,9 +4,18 @@ import java.math.BigInteger
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import scala.concurrent.Future
 import scala.util.{Failure, Random, Success}
+
+object resource {
+
+  import java.io.InputStream
+  case class X() {
+    def acquireAndGet[R](fn: InputStream => R): R = ???
+  }
+
+  def managed(is: InputStream) = X()
+}
 
 object utils {
   implicit class HashUtils(input: String) {

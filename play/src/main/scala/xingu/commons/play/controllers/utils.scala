@@ -22,15 +22,12 @@ object utils {
   }
 
   implicit class ResponseHelper(r: WSResponse) {
-    def removeContentTypeContentLengthAndSetCookie(header: (String, Seq[String])): Boolean =
-      header._1 != HeaderNames.CONTENT_TYPE && header._1 != HeaderNames.CONTENT_LENGTH && header._1 != HeaderNames.SET_COOKIE
-
-    def asTuple(header: (String, Seq[String])) =
-      (header._1, header._2.head)
+    def removeContentTypeContentLengthAndSetCookie(key: String): Boolean =
+      key != HeaderNames.CONTENT_TYPE && key != HeaderNames.CONTENT_LENGTH &&key != HeaderNames.SET_COOKIE
 
     def toResult: Result = {
       val cookies    = r.headerValues(HeaderNames.SET_COOKIE)
-      val headers    = r.headers filter { removeContentTypeContentLengthAndSetCookie } map { asTuple }
+      val headers    = r.headers.filter({case (key, _) => removeContentTypeContentLengthAndSetCookie(key)}).map({ case (key, values) => (key, values.head)})
       val compressed = if(cookies.isEmpty) None else Some(cookies.mkString(";;")) // same as CookieHeaderEncoding.SetCookieHeaderSeparator
       val parsed     = Cookies.decodeSetCookieHeader(cookies.mkString(";;")).toSeq
 

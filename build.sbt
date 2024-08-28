@@ -1,37 +1,38 @@
 import sbt.Keys._
 import sbt.Resolver
 
+lazy val scala3   = "3.3.3"
+lazy val scala212 = "2.12.19"
+lazy val scala213 = "2.13.14"
+
 //ThisBuild / publishTo    := Some(GCSPublisher.forBucket("dogma-repo-test", AccessRights.InheritBucket))
-ThisBuild / scalaVersion := "2.12.11"
+ThisBuild / scalaVersion := scala213
 ThisBuild / organization := "xingu"
-ThisBuild / name         := "xingu-scala-commons"
-ThisBuild / version      := "v1.6.2"
+ThisBuild / version      := "v2.0.0-SNAPSHOT"
+ThisBuild / crossScalaVersions := List(scala213)
 
 lazy val settings = Seq(
   resolvers ++= Seq(
-    "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
-    Resolver.sonatypeRepo("releases"),
-    Resolver.sonatypeRepo("snapshots"),
+    Resolver.mavenLocal, //"Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
     Resolver.bintrayRepo("cakesolutions", "maven"),
-  )
+  ) ++ Resolver.sonatypeOssRepos("releases") ++ Resolver.sonatypeOssRepos("snapshots")
 )
 
 lazy val dependencies =
   new {
-    val logback         = "ch.qos.logback"     %  "logback-classic"      % "1.2.3"
-    val cats            = "org.typelevel"      %% "cats-core"            % "1.6.0"
-    val shapeless       = "com.chuusai"        %% "shapeless"            % "2.3.3"
-    val commonsLang     = "org.apache.commons" %  "commons-lang3"        % "3.10"
-    val commonsIo       = "commons-io"         %  "commons-io"           % "2.11.0"
-    val scalaArm        = "com.jsuereth"       %% "scala-arm"            % "2.0"
-    val gcs             = "com.google.cloud"   %  "google-cloud-storage" % "1.14.0"
+    val logback         = "ch.qos.logback"     %  "logback-classic"      % "1.5.6"
+    val cats            = "org.typelevel"      %% "cats-core"            % "2.12.0"
+    val shapeless       = "com.chuusai"        %% "shapeless"            % "2.3.12"
+    val commonsLang     = "org.apache.commons" %  "commons-lang3"        % "3.15.0"
+    val commonsIo       = "commons-io"         %  "commons-io"           % "2.16.1"
+    val gcs             = "com.google.cloud"   %  "google-cloud-storage" % "2.42.0"
     val javaxActivation = "com.sun.activation" %  "javax.activation"     % "1.2.0"
-    val kafkaClient     = "org.apache.kafka"   %  "kafka-clients"        % "2.6.0"
-    val scalaTestPlus   = "org.scalatestplus.play" %% "scalatestplus-play"          % "3.1.2" % Test
-    val scalaMock       = "org.scalamock"          %% "scalamock-scalatest-support" % "3.5.0" % Test
+    val kafkaClient     = "org.apache.kafka"   %  "kafka-clients"        % "3.8.0"
+    val scalaTest       = "org.scalatest"      %% "scalatest"            % "3.2.19" % Test
+    val scalaMock       = "org.scalamock"      %% "scalamock"            % "6.0.0"  % Test
 }
 
-lazy val commonDependencies = Seq(dependencies.javaxActivation, dependencies.scalaTestPlus, dependencies.scalaMock)
+lazy val commonDependencies = Seq(/*dependencies.javaxActivation,*/ dependencies.scalaTest, dependencies.scalaMock)
 
 lazy val commons = (project in file("commons"))
   .withId("xingu-commons")
@@ -48,7 +49,7 @@ lazy val play = (project in file("play"))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .dependsOn(commons)
-  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(ws, dependencies.scalaArm))
+  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(ws))
 
 lazy val cloudApi = (project in file("cloud/api"))
   .withId("xingu-cloud-api")
@@ -62,7 +63,7 @@ lazy val gcs = (project in file("cloud/impl/gcloud/storage"))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .dependsOn(cloudApi)
-  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.gcs, dependencies.scalaArm))
+  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.gcs, dependencies.javaxActivation))
 
 lazy val kafkaProducer = (project in file("kafka/producer"))
   .withId("xingu-kafka-producer")
@@ -73,10 +74,10 @@ lazy val kafkaProducer = (project in file("kafka/producer"))
 
 lazy val kafkaClient = (project in file("kafka/client"))
   .withId("xingu-kafka-client")
-  .enablePlugins(PlayScala)
-  .disablePlugins(PlayLayoutPlugin)
+//  .enablePlugins(PlayScala)
+//  .disablePlugins(PlayLayoutPlugin)
   .dependsOn(play)
-  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.commonsLang, dependencies.cats, dependencies.shapeless, dependencies.kafkaClient))
+  .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.commonsLang, dependencies.cats, /*dependencies.shapeless,*/ dependencies.kafkaClient))
 
 lazy val xingu = (project in file("."))
     .aggregate(commons, logging, play, cloudApi, gcs, kafkaProducer, kafkaClient)

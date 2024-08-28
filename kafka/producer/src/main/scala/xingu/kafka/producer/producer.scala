@@ -19,7 +19,7 @@ class SimpleKafkaProducer @Inject()(conf: Configuration, ec: ExecutionContext) e
   import java.util.Properties
   import scala.util.Try
 
-  implicit val executor = ec
+  implicit val executor: ExecutionContext = ec
 
   val logger  = LoggerFactory.getLogger(getClass)
   val enabled = conf.getOptional[Boolean]("kafka-producer.enabled").getOrElse(true)

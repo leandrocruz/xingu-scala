@@ -1,8 +1,9 @@
 package xingu.commons.play.filter
 
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.matchers.should._
+import org.scalatest.flatspec.AnyFlatSpec
 
-class PathConfigTest extends FlatSpecLike with Matchers {
+class PathConfigTest extends AnyFlatSpec with Matchers {
   it should "accept exact paths" in {
     new ExactMatch("/x").test("/x")   shouldBe true
     new ExactMatch("/x").test("/y")   shouldBe false

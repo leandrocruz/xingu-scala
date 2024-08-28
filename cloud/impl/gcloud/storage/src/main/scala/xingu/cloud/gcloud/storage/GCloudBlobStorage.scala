@@ -13,10 +13,10 @@ import javax.activation.MimetypesFileTypeMap
 import javax.inject.{Inject, Singleton}
 import org.slf4j.LoggerFactory
 import play.api.Configuration
-import resource.managed
+import xingu.commons.resource.managed
 import xingu.cloud.api.storage._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
 class Impl(project: String, key: String) extends BlobStorage {

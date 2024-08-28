@@ -1,9 +1,8 @@
 package xingu.commons.play
 
 import java.io.{File, FileInputStream, InputStream}
-
 import play.api.Configuration
-import resource._
+import xingu.commons.resource
 
 object config {
   implicit class ConfigurationHelper(conf: Configuration) {
@@ -23,7 +22,7 @@ object config {
         if(!file.exists())
           throw new Exception(s"Can't find file '$name'")
         else
-          managed(new FileInputStream(file)) acquireAndGet { handler }
+          resource.managed(new FileInputStream(file)) acquireAndGet { handler }
       }
   }
 }

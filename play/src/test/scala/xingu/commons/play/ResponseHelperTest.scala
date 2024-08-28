@@ -1,12 +1,12 @@
 import akka.util.ByteString
+import org.scalatest.matchers.should._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{Cookie, Cookies}
 import xingu.commons.play.controllers.utils._
 
-
-class ResponseHelperTest extends FlatSpecLike with Matchers with MockFactory {
+class ResponseHelperTest extends AnyFlatSpec with Matchers with MockFactory {
 
   def baseMock() = {
     val response = mock[WSResponse]

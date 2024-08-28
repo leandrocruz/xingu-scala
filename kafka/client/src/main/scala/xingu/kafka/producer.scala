@@ -1,5 +1,9 @@
 package xingu.kafka.producer
 
+import play.api.libs.json.Writes
+
+import scala.concurrent.ExecutionContext
+
 object api {
 
   import play.api.libs.json.Json
@@ -14,7 +18,7 @@ object api {
   }
 
   object json {
-    implicit val ProducedWriter = Json.writes [Produced]
+    implicit val ProducedWriter: Writes[Produced] = Json.writes [Produced]
   }
 }
 
@@ -39,7 +43,7 @@ object impl {
     import java.util.Properties
     import scala.util.Try
 
-    implicit val executor = services.ec()
+    implicit val executor: ExecutionContext = services.ec()
 
     val logger         = LoggerFactory.getLogger(getClass)
     val conf           = services.conf()
@@ -143,7 +147,7 @@ object supervisor {
 
   class DispatchSupervisor @Inject() (services: Services, producer: XinguKafkaProducer, storage: XinguKafkaStorage) extends Actor {
 
-    private implicit val ec = services.ec()
+    private implicit val ec: ExecutionContext = services.ec()
     private val logger      = LoggerFactory.getLogger(getClass)
     private val conf        = services.conf()
     private val clock       = services.clock()

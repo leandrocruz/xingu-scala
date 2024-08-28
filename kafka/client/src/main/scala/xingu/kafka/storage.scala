@@ -1,5 +1,7 @@
 package xingu.kafka.storage
 
+import play.api.libs.json.{OWrites, Writes}
+
 object api {
 
   import play.api.libs.json.{JsSuccess, JsValue, Json, Reads}
@@ -39,15 +41,15 @@ object api {
 
   object json {
 
-    implicit val DownloadRequestWriter     = Json.writes [DownloadRequest]
-    implicit val UploadRequestReader       = Json.reads  [UploadRequest]
-    implicit val UploadRequestWriter       = Json.writes [UploadRequest]
-    implicit val UploadResultReader        = Json.reads  [UploadResult]
-    implicit val UploadResultWriter        = Json.writes [UploadResult]
-    implicit val KafkaMessagePointerReader = Json.reads  [KafkaMessagePointer]
-    implicit val KafkaMessagePointerWriter = Json.writes [KafkaMessagePointer]
+    implicit val DownloadRequestWriter     : Writes[DownloadRequest]     = Json.writes [DownloadRequest]
+    implicit val UploadRequestReader       : Reads[UploadRequest]        = Json.reads  [UploadRequest]
+    implicit val UploadRequestWriter       : Writes[UploadRequest]       = Json.writes [UploadRequest]
+    implicit val UploadResultReader        : Reads[UploadResult]         = Json.reads  [UploadResult]
+    implicit val UploadResultWriter        : Writes[UploadResult]        = Json.writes [UploadResult]
+    implicit val KafkaMessagePointerReader : Reads[KafkaMessagePointer]  = Json.reads  [KafkaMessagePointer]
+    implicit val KafkaMessagePointerWriter : Writes[KafkaMessagePointer] = Json.writes [KafkaMessagePointer]
 
-    implicit val UploadExchangeReader = new Reads[UploadExchange] {
+    implicit val UploadExchangeReader: Reads[UploadExchange] = new Reads[UploadExchange] {
       override def reads(json: JsValue) = {
         val result: Either[Throwable, UploadResult] = (json \ "result" \ "error").asOpt[String] match {
           case Some(error) => Left(new Exception(error))

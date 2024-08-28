@@ -3,14 +3,14 @@ package xingu.kafka
 import java.time.{Clock, LocalDateTime}
 import java.time.format.DateTimeFormatter
 import org.apache.commons.lang3.RandomStringUtils
-import play.api.libs.json.Json
+import play.api.libs.json.{Json, Reads}
 
 import scala.util.Try
 
 case class Message(topic: String, payload: String, key: Option[String] = None)
 
 object json {
-  implicit val MessageReader = Json.reads[Message]
+  implicit val MessageReader: Reads[Message] = Json.reads[Message]
 }
 
 object Id {

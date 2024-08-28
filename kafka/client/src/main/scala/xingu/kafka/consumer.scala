@@ -1,10 +1,10 @@
 package xingu.kafka.consumer
 
 import java.util
-
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetCommitCallback}
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 
 object api {
 
@@ -47,7 +47,6 @@ object impl {
   import java.util.Properties
   import javax.inject.{Inject, Singleton}
   import scala.collection.JavaConverters._
-  import scala.collection.Seq
   import scala.concurrent.Future
   import scala.concurrent.duration._
   import scala.language.postfixOps
@@ -167,7 +166,7 @@ object impl {
 
   class KafkaSupervisor(services: Services, messageHandler: XinguKafkaEventHandler, storage: XinguKafkaStorage) extends Actor with Timers {
 
-    private implicit val ec  = services.ec()
+    private implicit val ec: ExecutionContext = services.ec()
 
     private val logger       = LoggerFactory.getLogger(getClass)
     private val conf         = services.conf().get[Configuration]("xingu.kafka")
@@ -248,7 +247,7 @@ object impl {
 
     private val logger = LoggerFactory.getLogger(getClass)
 
-    private implicit val ec = services.ec()
+    private implicit val ec: ExecutionContext = services.ec()
 
     private var firstPoll = true
     private var shouldRun = true
@@ -335,9 +334,9 @@ object impl {
 
     private val logger = LoggerFactory.getLogger(getClass)
 
-    private implicit val ec = services.ec()
+    private implicit val ec: ExecutionContext = services.ec()
 
-    override def receive = {
+    override def receive: Receive = {
       case record: ConsumerRecord[String, String] => process(record)
       case evt: Event                             => process(evt)
     }
@@ -459,7 +458,7 @@ object route {
 
     private val timeout = 30 seconds
 
-    private implicit val ec = services.ec()
+    private implicit val ec: ExecutionContext = services.ec()
 
     private def routesGiven(config: Seq[Configuration]): Seq[route.Route] = {
 

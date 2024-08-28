@@ -30,7 +30,7 @@ trait XinguController {
   }
 
   def validate[R](fn: (Request[JsValue], R)  => Future[Result])(implicit reader: Reads[R]): Request[JsValue] => Future[Result] = {
-    r: Request[JsValue] =>
+    (r: Request[JsValue]) =>
       r.body.validate[R] match {
         case err : JsError      => err.toBadRequest.successful()
         case ok  : JsSuccess[R] => fn(r, ok.get)
