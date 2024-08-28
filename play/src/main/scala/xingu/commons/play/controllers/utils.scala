@@ -80,12 +80,7 @@ object utils {
       }
 
       val keys = err.errors.map {
-        case (path: JsPath, array: Seq[JsonValidationError]) => {
-          (
-            translatePath(path),
-            array.flatMap(translateError)
-          )
-        }
+        case (path, array) => (translatePath(path), array.flatMap(translateError))
       }
 
       JsObject(keys.map {

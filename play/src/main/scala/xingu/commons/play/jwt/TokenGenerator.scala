@@ -29,9 +29,9 @@ trait TokenGenerator {
 @Singleton
 class JJwtTokenGenerator @Inject() (conf: Configuration, clock: Clock) extends TokenGenerator {
 
-  val log = LoggerFactory.getLogger(getClass)
+  private val log = LoggerFactory.getLogger(getClass)
 
-  val privateKey = conf.getOptional[String]("xingu.jwt.key") map {
+  private val privateKey = conf.getOptional[String]("xingu.jwt.key") map {
     toString
   } map {
     toPrivateKey
@@ -39,12 +39,14 @@ class JJwtTokenGenerator @Inject() (conf: Configuration, clock: Clock) extends T
     throw new Exception("Can't read JWT key")
   }
 
-  def toString(location: String): Array[Byte] = {
+  private val parser = Jwts.parserBuilder().setSigningKey(privateKey).build()
+
+  private def toString(location: String): Array[Byte] = {
     log.info(s"Loading key from: '$location'")
     Files.readAllBytes(Paths.get(location))
   }
 
-  def toPrivateKey(bytes: Array[Byte]) = {
+  private def toPrivateKey(bytes: Array[Byte]) = {
     val decoded = Base64.getDecoder.decode(bytes)
     new SecretKeySpec(decoded, 0, decoded.length, "HmacSHA512")
   }
@@ -59,7 +61,7 @@ class JJwtTokenGenerator @Inject() (conf: Configuration, clock: Clock) extends T
       .setSubject(subject)
       .setIssuedAt(issuedAt)
       .setIssuer(issuer)
-      .signWith(SignatureAlgorithm.HS512, privateKey)
+      .signWith(privateKey, SignatureAlgorithm.HS512)
 
     expiresAt foreach { at =>  jwt.setExpiration(at) }
 
@@ -72,7 +74,7 @@ class JJwtTokenGenerator @Inject() (conf: Configuration, clock: Clock) extends T
     )
   }
 
-  override def verify(input: String) = Try {
-    Jwts.parser().setSigningKey(privateKey).parseClaimsJws(input)
+  override def verify(input: String): Try[Jws[Claims]] = Try {
+    parser.parseClaimsJws(input)
   }
 }
