@@ -32,25 +32,25 @@ object utils {
   }
 
   def inquire(target: ActorRef)(msg: Any)(implicit system: ActorSystem) : Future[Any] = {
-    val promise = Promise[Any]
+    val promise = Promise[Any]()
     system.actorOf(Props(classOf[Inquire], target, AnyReceiver(promise))) ! msg
     promise.future
   }
 
   def inquireEither[T](target: ActorRef)(msg: Any)(implicit system: ActorSystem) : Future[Either[Throwable, T]] = {
-    val promise = Promise[Either[Throwable, T]]
+    val promise = Promise[Either[Throwable, T]]()
     system.actorOf(Props(classOf[Inquire], target, EitherReceiver(promise))) ! msg
     promise.future
   }
 
   def inquireOption[T](target: ActorRef)(msg: Any)(implicit system: ActorSystem) : Future[Option[T]] = {
-    val promise = Promise[Option[T]]
+    val promise = Promise[Option[T]]()
     system.actorOf(Props(classOf[Inquire], target, OptionReceiver(promise))) ! msg
     promise.future
   }
 
   def inquireTry[T](target: ActorRef)(msg: Any)(implicit system: ActorSystem) : Future[Try[T]] = {
-    val promise = Promise[Try[T]]
+    val promise = Promise[Try[T]]()
     system.actorOf(Props(classOf[Inquire], target, TryReceiver(promise))) ! msg
     promise.future
   }
@@ -79,7 +79,7 @@ class Inquire(manager: ActorRef, receiver: Receive) extends Actor {
 }
 
 class UnknownActor extends Actor {
-  override def receive = {
+  override def receive: Receive = {
     case _ => sender ! Unknown
   }
 }
