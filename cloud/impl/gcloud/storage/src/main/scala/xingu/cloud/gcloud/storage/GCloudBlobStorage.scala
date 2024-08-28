@@ -4,22 +4,19 @@ import java.io.{File, FileInputStream}
 import java.nio.ByteBuffer
 import java.nio.file.{Files, Paths}
 
-import akka.util.ByteString
 import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.storage
 import com.google.cloud.storage.Storage.{BlobListOption, BucketListOption}
 import com.google.cloud.storage.{BlobInfo, Bucket, Storage, StorageOptions}
 import javax.activation.MimetypesFileTypeMap
-import javax.inject.{Inject, Singleton}
 import org.slf4j.LoggerFactory
-import play.api.Configuration
+
 import xingu.commons.resource.managed
 import xingu.cloud.api.storage._
-
 import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
-class Impl(project: String, key: String) extends BlobStorage {
+case class GCloudBlobStorage(project: String, key: String) extends BlobStorage {
 
   private val logger = LoggerFactory.getLogger(getClass)
 
@@ -43,7 +40,7 @@ class Impl(project: String, key: String) extends BlobStorage {
     }
   }
 
-  override def list(bucket: String, path: String, size: Option[Long] = None)(implicit ec: ExecutionContext) = {
+  override def list(bucket: String, path: String, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[Seq[String]] = {
 
     def listItems(opt: Option[Bucket]) = {
       opt map { b =>
@@ -95,7 +92,7 @@ class Impl(project: String, key: String) extends BlobStorage {
     )
   }
 
-  override def download(bucket: String, path: String)(implicit ec: ExecutionContext) = {
+  override def download(bucket: String, path: String)(implicit ec: ExecutionContext): Future[Option[Blob]] = {
 
     def downloadItem(opt: Option[Bucket]) = {
       def blobOf(it: storage.Blob) = {
@@ -103,7 +100,7 @@ class Impl(project: String, key: String) extends BlobStorage {
           name        = Paths.get(path).getFileName.toString,
           size        = it.getSize,
           contentType = Option(it.getContentType),
-          data        = ByteString(it.getContent()))
+          data        = it.getContent())
       }
 
       opt map { b =>
@@ -126,20 +123,20 @@ class Impl(project: String, key: String) extends BlobStorage {
   }
 }
 
-@Singleton
-class GCloudBlobStorage @Inject() (config: Configuration) extends BlobStorage {
-
-  private val conf    = config.get[Configuration]("xingu.cloud.storage.blob")
-  private val project = conf.get[String]("project")
-  private val key     = conf.get[String]("key")
-  private val impl    = new Impl(project, key)
-
-  override def list(bucket: String, path: String, size: Option[Long])(implicit ec: ExecutionContext) =
-    impl.list(bucket, path, size)
-
-  override def upload(bucket: String, path: String, file: File, contentType: Option[String])(implicit ec: ExecutionContext) =
-    impl.upload(bucket, path, file, contentType)
-
-  override def download(bucket: String, path: String)(implicit ec: ExecutionContext) =
-    impl.download(bucket, path)
-}
+//@Singleton
+//class GCloudBlobStorage @Inject() (config: Configuration) extends BlobStorage {
+//
+//  private val conf    = config.get[Configuration]("xingu.cloud.storage.blob")
+//  private val project = conf.get[String]("project")
+//  private val key     = conf.get[String]("key")
+//  private val impl    = new Impl(project, key)
+//
+//  override def list(bucket: String, path: String, size: Option[Long])(implicit ec: ExecutionContext) =
+//    impl.list(bucket, path, size)
+//
+//  override def upload(bucket: String, path: String, file: File, contentType: Option[String])(implicit ec: ExecutionContext) =
+//    impl.upload(bucket, path, file, contentType)
+//
+//  override def download(bucket: String, path: String)(implicit ec: ExecutionContext) =
+//    impl.download(bucket, path)
+//}

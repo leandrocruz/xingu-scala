@@ -53,15 +53,11 @@ lazy val play = (project in file("play"))
 
 lazy val cloudApi = (project in file("cloud/api"))
   .withId("xingu-cloud-api")
-  .enablePlugins(PlayScala)
-  .disablePlugins(PlayLayoutPlugin)
   .dependsOn(commons)
   .settings(settings, libraryDependencies ++= commonDependencies)
 
 lazy val gcs = (project in file("cloud/impl/gcloud/storage"))
   .withId("xingu-cloud-gcs")
-  .enablePlugins(PlayScala)
-  .disablePlugins(PlayLayoutPlugin)
   .dependsOn(cloudApi)
   .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.gcs, dependencies.javaxActivation))
 
@@ -74,8 +70,6 @@ lazy val kafkaProducer = (project in file("kafka/producer"))
 
 lazy val kafkaClient = (project in file("kafka/client"))
   .withId("xingu-kafka-client")
-//  .enablePlugins(PlayScala)
-//  .disablePlugins(PlayLayoutPlugin)
   .dependsOn(play)
   .settings(settings, libraryDependencies ++= commonDependencies ++ Seq(dependencies.commonsLang, dependencies.cats, /*dependencies.shapeless,*/ dependencies.kafkaClient))
 

@@ -1,9 +1,6 @@
 package xingu.cloud.api.storage
 
 import java.io.File
-
-import akka.util.ByteString
-
 import scala.concurrent.{ExecutionContext, Future}
 
 case class UploadResult(
@@ -16,7 +13,7 @@ case class Blob(
   name        : String        ,
   size        : Long          ,
   contentType : Option[String],
-  data        : ByteString
+  data        : Array[Byte]
 )
 
 trait BlobStorage {
