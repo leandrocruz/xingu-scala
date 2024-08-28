@@ -10,11 +10,27 @@ import scala.util.{Failure, Random, Success}
 object resource {
 
   import java.io.InputStream
-  case class X() {
-    def acquireAndGet[R](fn: InputStream => R): R = ???
+  import scala.util.Try
+
+  case class Managed(is: InputStream) {
+    def acquireAndGet[R](fn: InputStream => R): R = {
+
+      def close(): Unit = {
+        try {
+          is.close()
+        } catch {
+          case _: Throwable =>
+        }
+      }
+
+      Try(fn(is)) match {
+        case Failure(err)   => close(); throw err
+        case Success(value) => close(); value
+      }
+    }
   }
 
-  def managed(is: InputStream) = X()
+  def managed(is: => InputStream) = Managed(is)
 }
 
 object utils {
